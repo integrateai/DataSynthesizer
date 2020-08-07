@@ -3,7 +3,7 @@ from typing import Dict, List, Union
 
 from numpy import array_equal
 from pandas import DataFrame, read_csv
-
+from s3fs import S3FileSystem
 from DataSynthesizer.datatypes.AbstractAttribute import AbstractAttribute
 from DataSynthesizer.datatypes.DateTimeAttribute import is_datetime, DateTimeAttribute
 from DataSynthesizer.datatypes.FloatAttribute import FloatAttribute
@@ -60,9 +60,10 @@ class DataDescriber:
         self.attr_to_column: Dict[str, AbstractAttribute] = None
         self.bayesian_network: List = None
         self.df_encoded: DataFrame = None
+        self.s3fs = S3FileSystem()
 
     def describe_dataset_in_random_mode(self,
-                                        dataset_file: str,
+                                        dataset_file: Union[str, DataFrame],
                                         attribute_to_datatype: Dict[str, DataType] = None,
                                         attribute_to_is_categorical: Dict[str, bool] = None,
                                         attribute_to_is_candidate_key: Dict[str, bool] = None,
@@ -83,7 +84,12 @@ class DataDescriber:
         self.attr_to_datatype = {attr: DataType(datatype) for attr, datatype in attribute_to_datatype.items()}
         self.attr_to_is_categorical = attribute_to_is_categorical
         self.attr_to_is_candidate_key = attribute_to_is_candidate_key
-        self.read_dataset_from_csv(dataset_file)
+
+        if type(dataset_file) is str:
+            self.read_dataset_from_csv(dataset_file)
+        else:
+            self.set_input_dataframe(dataset_file)
+
         self.infer_attribute_data_types()
         self.analyze_dataset_meta()
         self.represent_input_dataset_by_columns()
@@ -103,7 +109,7 @@ class DataDescriber:
             self.data_description['attribute_description'][attr] = column.to_json()
 
     def describe_dataset_in_independent_attribute_mode(self,
-                                                       dataset_file,
+                                                       dataset_file: Union[str, DataFrame],
                                                        epsilon=0.1,
                                                        attribute_to_datatype: Dict[str, DataType] = None,
                                                        attribute_to_is_categorical: Dict[str, bool] = None,
@@ -129,7 +135,7 @@ class DataDescriber:
             self.data_description['attribute_description'][attr] = column.to_json()
 
     def describe_dataset_in_correlated_attribute_mode(self,
-                                                      dataset_file,
+                                                      dataset_file: Union[str, DataFrame],
                                                       k=0,
                                                       epsilon=0.1,
                                                       attribute_to_datatype: Dict[str, DataType] = None,
@@ -142,7 +148,7 @@ class DataDescriber:
 
         Parameters
         ----------
-        dataset_file : str
+        dataset_file : str or DataFrame
             File name (with directory) of the sensitive dataset as input in csv format.
         k : int
             Maximum number of parents in Bayesian network.
@@ -181,11 +187,15 @@ class DataDescriber:
 
     def read_dataset_from_csv(self, file_name=None):
         try:
-            self.df_input = read_csv(file_name, skipinitialspace=True, na_values=self.null_values)
+            self.set_input_dataframe(read_csv(file_name, skipinitialspace=True, na_values=self.null_values))
         except (UnicodeDecodeError, NameError):
-            self.df_input = read_csv(file_name, skipinitialspace=True, na_values=self.null_values,
-                                     encoding='latin1')
+            self.set_input_dataframe(read_csv(file_name, skipinitialspace=True, na_values=self.null_values,
+                                     encoding='latin1'))
 
+    def set_input_dataframe(self, dataframe: DataFrame) -> None:
+        self.df_input = dataframe
+
+    def remove_empty_columns(self):
         # Remove columns with empty active domain, i.e., all values are missing.
         attributes_before = set(self.df_input.columns)
         self.df_input.dropna(axis=1, how='all')
@@ -295,8 +305,13 @@ class DataDescriber:
         return encoded_dataset
 
     def save_dataset_description_to_file(self, file_name):
-        with open(file_name, 'w') as outfile:
-            json.dump(self.data_description, outfile, indent=4)
+
+        if "s3://" in file_name:
+            with self.s3fs.open(file_name, 'w') as outfile:
+                json.dump(self.data_description, outfile, indent=4)
+        else: 
+            with open(file_name, 'w') as outfile:
+                json.dump(self.data_description, outfile, indent=4)
 
     def display_dataset_description(self):
         print(json.dumps(self.data_description, indent=4))
