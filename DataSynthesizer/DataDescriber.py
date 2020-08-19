@@ -1,6 +1,5 @@
 import json
 from typing import Dict, List, Union
-
 from numpy import array_equal
 from pandas import DataFrame, read_csv
 from s3fs import S3FileSystem
@@ -85,7 +84,7 @@ class DataDescriber:
         self.attr_to_is_categorical = attribute_to_is_categorical
         self.attr_to_is_candidate_key = attribute_to_is_candidate_key
 
-        if type(dataset_file) is str:
+        if type(dataset_file) is not DataFrame:
             self.read_dataset_from_csv(dataset_file)
         else:
             self.set_input_dataframe(dataset_file)
@@ -306,10 +305,10 @@ class DataDescriber:
 
     def save_dataset_description_to_file(self, file_name):
 
-        if "s3://" in file_name:
+        if "s3://" in str(file_name):
             with self.s3fs.open(file_name, 'w') as outfile:
                 json.dump(self.data_description, outfile, indent=4)
-        else: 
+        else:
             with open(file_name, 'w') as outfile:
                 json.dump(self.data_description, outfile, indent=4)
 

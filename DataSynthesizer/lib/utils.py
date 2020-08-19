@@ -7,6 +7,7 @@ import numpy as np
 from pandas import Series, DataFrame
 from sklearn.metrics import mutual_info_score, normalized_mutual_info_score
 
+
 def set_random_seed(seed=0):
     random.seed(seed)
     np.random.seed(seed)
@@ -54,7 +55,7 @@ def normalize_given_distribution(frequencies):
 
 
 def read_json_file(json_file):
-    if "s3://" in json_file:
+    if "s3://" in str(json_file):
         fs = s3fs.S3FileSystem()
         with fs.open(json_file, 'r') as file:
             return json.load(file)
