@@ -1,5 +1,6 @@
 import json
 import random
+import s3fs
 from string import ascii_lowercase
 
 import numpy as np
@@ -54,8 +55,14 @@ def normalize_given_distribution(frequencies):
 
 
 def read_json_file(json_file):
-    with open(json_file, 'r') as file:
-        return json.load(file)
+    if "s3://" in str(json_file):
+        fs = s3fs.S3FileSystem()
+        with fs.open(json_file, 'r') as file:
+            return json.load(file)
+
+    else:
+        with open(json_file, 'r') as file:
+            return json.load(file)
 
 
 def infer_numerical_attributes_in_dataframe(dataframe):

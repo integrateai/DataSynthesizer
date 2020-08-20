@@ -21,7 +21,8 @@ requirements = [
     "scikit-learn>=0.23.1",
     "matplotlib>=3.2.2",
     "seaborn>=0.10.1",
-    "python-dateutil>=2.8.1"
+    "python-dateutil>=2.8.1",
+    "s3fs"
 ]
 
 setup_requirements = ['pytest-runner', ]
@@ -31,7 +32,7 @@ test_requirements = ['pytest>=5', ]
 setup(
     author="Data, Responsibly",
     author_email='dataresponsibly@gmail.com',
-    python_requires='>=3.8',
+    python_requires='>=3.6',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
@@ -53,6 +54,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/DataResponsibly/DataSynthesizer',
-    version='0.1.2',
+    version='0.1.2+iai.0.0.1',
     zip_safe=False,
 )

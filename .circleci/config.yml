@@ -1,0 +1,66 @@
+# Python CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-python/ for more details
+#
+version: 2
+jobs:
+  test:
+    docker:
+      - image: circleci/python:3.6.7
+    steps:
+      - checkout
+      - run:
+          name: Establish secure tunnel
+          command: |
+            SSH_PARAMS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=10"
+            sudo -E ssh $SSH_PARAMS -f -N -L 443:python.internal.integrateai.net:443 ansible@ansible.integrateai.net
+            sudo bash -c "echo '127.0.0.1 python.internal.integrateai.net' >> /etc/hosts"
+      - run:
+          name: Install Dependencies
+          command: |
+            python3 -m venv venv
+            . venv/bin/activate
+            python setup.py install
+            pip install -r requirements_dev.txt
+      - run:
+          name: Run Tests
+          command: |
+            . venv/bin/activate
+            python -m pytest
+
+  build-and-deploy-to-s3:
+    docker:
+      - image: circleci/python:3.6.7
+    steps:
+      - checkout
+      - run:
+          name: Install aws cli
+          command: pip3 install awscli --upgrade --user
+      - run:
+          name: Build Source Distribution
+          command: |
+            python3 setup.py sdist
+      - run:
+          name: Ensure new version (merged version must not exist in S3)
+          command: |
+            ! ~/.local/bin/aws s3 ls s3://deployment.integrate.ai/python/datasynthesizer/$(cd ~/project/dist; ls -1 DataSynthesizer-*.tar.gz)
+      - run:
+          name: Copy to S3
+          command: |
+            ~/.local/bin/aws s3 cp ~/project/dist/DataSynthesizer-*.tar.gz s3://deployment.integrate.ai/python/datasynthesizer/
+workflows:
+  version: 2
+  test-and-build:
+    jobs:
+      - test:
+          filters: # required since `build-and-deploy-to-s3` has tag filters AND requires `test`
+            tags:
+              only: /.*/
+      - build-and-deploy-to-s3:
+          requires:
+            - test
+          filters:
+            tags:
+              only: /.*iai.*/
+            branches:
+              ignore: /.*/
