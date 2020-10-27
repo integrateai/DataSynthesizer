@@ -2,7 +2,6 @@ import json
 from typing import Dict, List, Union
 from numpy import array_equal
 from pandas import DataFrame, read_csv
-from s3fs import S3FileSystem
 from DataSynthesizer.datatypes.AbstractAttribute import AbstractAttribute
 from DataSynthesizer.datatypes.DateTimeAttribute import is_datetime, DateTimeAttribute
 from DataSynthesizer.datatypes.FloatAttribute import FloatAttribute
@@ -12,8 +11,8 @@ from DataSynthesizer.datatypes.StringAttribute import StringAttribute
 from DataSynthesizer.datatypes.utils.DataType import DataType
 from DataSynthesizer.lib import utils
 from DataSynthesizer.lib.PrivBayes import greedy_bayes, construct_noisy_conditional_distributions
-
-
+import smart_open
+import boto3
 class DataDescriber:
     """Model input dataset, then save a description of the dataset into a JSON file.
 
@@ -59,7 +58,6 @@ class DataDescriber:
         self.attr_to_column: Dict[str, AbstractAttribute] = None
         self.bayesian_network: List = None
         self.df_encoded: DataFrame = None
-        self.s3fs = S3FileSystem()
 
     def describe_dataset_in_random_mode(self,
                                         dataset_file: Union[str, DataFrame],
@@ -305,11 +303,7 @@ class DataDescriber:
 
     def save_dataset_description_to_file(self, file_name):
 
-        if "s3://" in str(file_name):
-            with self.s3fs.open(file_name, 'w') as outfile:
-                json.dump(self.data_description, outfile, indent=4)
-        else:
-            with open(file_name, 'w') as outfile:
+            with smart_open.open(file_name, 'w', transport_params={'session': boto3.DEFAULT_SESSION}) as outfile:
                 json.dump(self.data_description, outfile, indent=4)
 
     def display_dataset_description(self):
