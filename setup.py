@@ -22,7 +22,8 @@ requirements = [
     "matplotlib",
     "seaborn",
     "python-dateutil",
-    "smart-open"
+    "smart-open",
+    "boto3"
 ]
 
 setup_requirements = ['pytest-runner', ]
